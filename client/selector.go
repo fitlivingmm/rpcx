@@ -7,11 +7,15 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/edwingeng/doublejump"
+	"github.com/henrylee2cn/goutil"
+	"github.com/smallnest/rpcx/log"
+	"github.com/smallnest/rpcx/util"
 
-	"github.com/valyala/fastrand"
+	"github.com/edwingeng/doublejump"
 )
 
 type SelectFunc func(ctx context.Context, servicePath, serviceMethod string, args interface{}) string
@@ -20,6 +24,8 @@ type SelectFunc func(ctx context.Context, servicePath, serviceMethod string, arg
 type Selector interface {
 	Select(ctx context.Context, servicePath, serviceMethod string, args interface{}) string // SelectFunc
 	UpdateServer(servers map[string]string)
+	AddNode(key string, info *util.ServiceInfo)
+	DelNode(key string)
 }
 
 func newSelector(selectMode SelectMode, servers map[string]string) Selector {
@@ -41,27 +47,46 @@ func newSelector(selectMode SelectMode, servers map[string]string) Selector {
 	}
 }
 
+// Node a service node info.
+type Node struct {
+	Addr string
+	Info *util.ServiceInfo
+	mu   sync.RWMutex
+}
+
 // randomSelector selects randomly.
 type randomSelector struct {
-	servers []string
+	servers  []string
+	nodes    goutil.Map
+	uriPaths goutil.Map
 }
 
 func newRandomSelector(servers map[string]string) Selector {
-	ss := make([]string, 0, len(servers))
-	for k := range servers {
-		ss = append(ss, k)
+	info := &randomSelector{
+		nodes:    goutil.AtomicMap(),
+		uriPaths: goutil.AtomicMap(),
 	}
-
-	return &randomSelector{servers: ss}
+	for k, v := range servers {
+		if strings.HasPrefix(k, util.ServiceNamespace()) {
+			info.AddNode(k, util.GetServiceInfo([]byte(v)))
+		}
+	}
+	return info
 }
 
 func (s randomSelector) Select(ctx context.Context, servicePath, serviceMethod string, args interface{}) string {
-	ss := s.servers
-	if len(ss) == 0 {
+	iface, exist := s.uriPaths.Load(serviceMethod)
+	if !exist {
+		log.Errorf("serviceMethod is not exist.serviceMethod:%+v", serviceMethod)
 		return ""
 	}
-	i := fastrand.Uint32n(uint32(len(ss)))
-	return ss[i]
+	nodes := iface.(goutil.Map)
+	var addr string
+	if _, iface, exist = nodes.Random(); exist {
+		addr = iface.(*Node).Addr
+		return addr
+	}
+	return ""
 }
 
 func (s *randomSelector) UpdateServer(servers map[string]string) {
@@ -71,6 +96,53 @@ func (s *randomSelector) UpdateServer(servers map[string]string) {
 	}
 
 	s.servers = ss
+}
+
+func (s *randomSelector) AddNode(key string, info *util.ServiceInfo) {
+	addr := util.GetHostport(key)
+	node := &Node{
+		Addr: addr,
+		Info: info,
+	}
+	s.nodes.Store(addr, node)
+	log.Infof("AddNode addr:%+v, len:%+v", addr, s.nodes.Len())
+	var (
+		v          interface{}
+		ok         bool
+		uriPathMap goutil.Map
+	)
+	for _, uriPath := range info.UriPaths {
+		if v, ok = s.uriPaths.Load(uriPath); !ok {
+			uriPathMap = goutil.RwMap(1)
+			uriPathMap.Store(addr, node)
+			s.uriPaths.Store(uriPath, uriPathMap)
+		} else {
+			uriPathMap = v.(goutil.Map)
+			uriPathMap.Store(addr, node)
+		}
+	}
+}
+func (s *randomSelector) DelNode(key string) {
+	addr := util.GetHostport(key)
+	_node, ok := s.nodes.Load(addr)
+	if !ok {
+		return
+	}
+	s.nodes.Delete(addr)
+	log.Infof("DelNode addr:%+v, len:%+v", addr, s.nodes.Len())
+	for _, uriPath := range _node.(*Node).Info.UriPaths {
+		_uriPathMap, ok := s.uriPaths.Load(uriPath)
+		if !ok {
+			continue
+		}
+		uriPathMap := _uriPathMap.(goutil.Map)
+		if _, ok := uriPathMap.Load(addr); ok {
+			uriPathMap.Delete(addr)
+			if uriPathMap.Len() == 0 {
+				s.uriPaths.Delete(uriPath)
+			}
+		}
+	}
 }
 
 // roundRobinSelector selects servers with roundrobin.
@@ -84,7 +156,6 @@ func newRoundRobinSelector(servers map[string]string) Selector {
 	for k := range servers {
 		ss = append(ss, k)
 	}
-
 	return &roundRobinSelector{servers: ss}
 }
 
@@ -96,7 +167,6 @@ func (s *roundRobinSelector) Select(ctx context.Context, servicePath, serviceMet
 	i := s.i
 	i = i % len(ss)
 	s.i = i + 1
-
 	return ss[i]
 }
 
@@ -107,6 +177,12 @@ func (s *roundRobinSelector) UpdateServer(servers map[string]string) {
 	}
 
 	s.servers = ss
+}
+
+func (s *roundRobinSelector) AddNode(key string, info *util.ServiceInfo) {
+}
+
+func (s *roundRobinSelector) DelNode(key string) {
 }
 
 // weightedRoundRobinSelector selects servers with weighted.
@@ -134,6 +210,12 @@ func (s *weightedRoundRobinSelector) Select(ctx context.Context, servicePath, se
 func (s *weightedRoundRobinSelector) UpdateServer(servers map[string]string) {
 	ss := createWeighted(servers)
 	s.servers = ss
+}
+
+func (s *weightedRoundRobinSelector) AddNode(key string, info *util.ServiceInfo) {
+
+}
+func (s *weightedRoundRobinSelector) DelNode(key string) {
 }
 
 func createWeighted(servers map[string]string) []*Weighted {
@@ -204,6 +286,11 @@ func (s geoSelector) Select(ctx context.Context, servicePath, serviceMethod stri
 func (s *geoSelector) UpdateServer(servers map[string]string) {
 	ss := createGeoServer(servers)
 	s.servers = ss
+}
+
+func (s *geoSelector) AddNode(key string, info *util.ServiceInfo) {
+}
+func (s *geoSelector) DelNode(key string) {
 }
 
 func createGeoServer(servers map[string]string) []*geoServer {
@@ -279,6 +366,11 @@ func (s *consistentHashSelector) UpdateServer(servers map[string]string) {
 		}
 	}
 	s.servers = ss
+}
+
+func (s *consistentHashSelector) AddNode(key string, info *util.ServiceInfo) {
+}
+func (s *consistentHashSelector) DelNode(key string) {
 }
 
 // weightedICMPSelector selects servers with ping result.

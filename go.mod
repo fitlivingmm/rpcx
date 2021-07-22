@@ -2,6 +2,7 @@ module github.com/smallnest/rpcx
 
 go 1.16
 
+
 require (
 	github.com/ChimeraCoder/gojson v1.1.0
 	github.com/apache/thrift v0.14.0
@@ -17,6 +18,7 @@ require (
 	github.com/grandcat/zeroconf v0.0.0-20180329153754-df75bb3ccae1
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/henrylee2cn/goutil v0.0.0-20210421033923-b50c8d7a9d5d
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/json-iterator/go v1.1.10
 	github.com/juju/ratelimit v1.0.1
@@ -30,6 +32,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 	github.com/rpcxio/libkv v0.5.1-0.20210420120011-1fceaedca8a5
+	//github.com/rpcxio/rpcx-etcd v0.0.0-00010101000000-000000000000 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rubyist/circuitbreaker v2.2.1+incompatible
 	github.com/smallnest/quick v0.0.0-20200505103731-c8c83f9c76d3
@@ -46,5 +49,6 @@ require (
 	go.opencensus.io v0.22.2
 	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	google.golang.org/grpc/examples v0.0.0-20210715165331-ce7bdf50abb1 // indirect
 	google.golang.org/protobuf v1.25.0
 )
