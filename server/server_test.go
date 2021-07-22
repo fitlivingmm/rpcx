@@ -7,9 +7,9 @@ import (
 
 	"time"
 
-	testutils "github.com/smallnest/rpcx/_testutils"
-	"github.com/smallnest/rpcx/protocol"
-	"github.com/smallnest/rpcx/share"
+	testutils "github.com/fitlivingmm/rpcx/_testutils"
+	"github.com/fitlivingmm/rpcx/protocol"
+	"github.com/fitlivingmm/rpcx/share"
 )
 
 type Args struct {

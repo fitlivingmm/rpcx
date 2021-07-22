@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/smallnest/rpcx/protocol"
-	"github.com/smallnest/rpcx/share"
+	"github.com/fitlivingmm/rpcx/protocol"
+	"github.com/fitlivingmm/rpcx/share"
 )
 
 const (

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fitlivingmm/rpcx/log"
 	"github.com/grandcat/zeroconf"
-	"github.com/smallnest/rpcx/log"
 )
 
 type serviceMeta struct {

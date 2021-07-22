@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 
+	"github.com/fitlivingmm/rpcx/share"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/smallnest/rpcx/share"
 )
 
 type OpenTracingPlugin struct{}

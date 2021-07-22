@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	testutils "github.com/fitlivingmm/rpcx/_testutils"
 	"github.com/kr/pretty"
-	testutils "github.com/smallnest/rpcx/_testutils"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,7 +1,6 @@
-module github.com/smallnest/rpcx
+module github.com/fitlivingmm/rpcx
 
 go 1.16
-
 
 require (
 	github.com/ChimeraCoder/gojson v1.1.0
@@ -42,7 +41,6 @@ require (
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20191217153810-f85b25db303b // indirect
 	github.com/tjfoc/gmsm v1.4.0 // indirect
-	github.com/valyala/fastrand v0.0.0-20170531153657-19dd0f0bf014
 	github.com/vmihailenco/msgpack/v5 v5.3.4
 	github.com/xtaci/kcp-go v5.4.20+incompatible
 	github.com/xtaci/lossyconn v0.0.0-20200209145036-adba10fffc37 // indirect

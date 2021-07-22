@@ -5,10 +5,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/fitlivingmm/rpcx/protocol"
+	"github.com/fitlivingmm/rpcx/server"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
-	"github.com/smallnest/rpcx/protocol"
-	"github.com/smallnest/rpcx/server"
 )
 
 // MetricsPlugin has an issue. It changes seq of requests and it is wrong!!!!

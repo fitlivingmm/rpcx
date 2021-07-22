@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fitlivingmm/rpcx/log"
+	"github.com/fitlivingmm/rpcx/util"
 	"github.com/henrylee2cn/goutil"
-	"github.com/smallnest/rpcx/log"
-	"github.com/smallnest/rpcx/util"
 
 	"github.com/edwingeng/doublejump"
 )

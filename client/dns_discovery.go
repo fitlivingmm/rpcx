@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smallnest/rpcx/log"
+	"github.com/fitlivingmm/rpcx/log"
 )
 
 // DNSDiscovery is based on DNS a record.

@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fitlivingmm/rpcx/log"
+	"github.com/fitlivingmm/rpcx/share"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/smallnest/rpcx/log"
-	"github.com/smallnest/rpcx/share"
 )
 
 var ErrNotAccept = errors.New("server refused the connection")

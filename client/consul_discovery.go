@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fitlivingmm/rpcx/log"
 	"github.com/rpcxio/libkv"
 	"github.com/rpcxio/libkv/store"
 	"github.com/rpcxio/libkv/store/consul"
-	"github.com/smallnest/rpcx/log"
 )
 
 func init() {
