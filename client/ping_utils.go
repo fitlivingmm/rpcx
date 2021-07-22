@@ -5,6 +5,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/fitlivingmm/rpcx/util"
+
 	ping "github.com/go-ping/ping"
 )
 
@@ -28,6 +30,12 @@ func (s weightedICMPSelector) Select(ctx context.Context, servicePath, serviceMe
 func (s *weightedICMPSelector) UpdateServer(servers map[string]string) {
 	ss := createICMPWeighted(servers)
 	s.servers = ss
+}
+
+func (s *weightedICMPSelector) AddNode(key string, info *util.ServiceInfo) {
+
+}
+func (s *weightedICMPSelector) DelNode(key string) {
 }
 
 func createICMPWeighted(servers map[string]string) []*Weighted {
