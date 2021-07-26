@@ -121,7 +121,7 @@ type xClient struct {
 
 // NewXClientNodes creates a XClient that supports service discovery and service governance.
 func NewXClientNodes(servicePath string, failMode FailMode, discovery ServiceDiscovery, option Option) XClient {
-	selectMode := RandomSelect
+	selectMode := EtcdV3Method
 	client := &xClient{
 		failMode:     failMode,
 		selectMode:   selectMode,
@@ -255,17 +255,32 @@ func (c *xClient) Auth(auth string) {
 // watch changes of service and update cached clients.
 func (c *xClient) watch(ch chan []*KVPair) {
 	for pairs := range ch {
-		c.mu.Lock()
+		sort.Slice(pairs, func(i, j int) bool {
+			return strings.Compare(pairs[i].Key, pairs[j].Key) <= 0
+		})
+		servers := make(map[string]string, len(pairs))
 		for _, p := range pairs {
-			log.Infof("watchUrls p:%+v", p)
-			if c.selector != nil {
-				if p.Type == uint64(EventTypePut) {
-					c.selector.AddNode(p.Key, util.GetServiceInfo([]byte(p.Value)))
-				} else if p.Type == uint64(EventTypeDelete) {
-					c.selector.DelNode(p.Key)
+			servers[p.Key] = p.Value
+		}
+		c.mu.Lock()
+		filterByStateAndGroup(c.option.Group, servers)
+		c.servers = servers
+
+		if c.selector != nil {
+			c.selector.UpdateServer(servers)
+
+			if _, ok := c.selector.(*etcdv3MethodSelector); ok {
+				for _, p := range pairs {
+					log.Infof("watchUrls p:%+v", p)
+					if p.Type == uint64(EventTypePut) {
+						c.selector.AddNode(p.Key, util.GetServiceInfo([]byte(p.Value)))
+					} else if p.Type == uint64(EventTypeDelete) {
+						c.selector.DelNode(p.Key)
+					}
 				}
 			}
 		}
+
 		c.mu.Unlock()
 	}
 }

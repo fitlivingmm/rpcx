@@ -14,6 +14,7 @@ import (
 	"github.com/fitlivingmm/rpcx/log"
 	"github.com/fitlivingmm/rpcx/util"
 	"github.com/henrylee2cn/goutil"
+	"github.com/valyala/fastrand"
 
 	"github.com/edwingeng/doublejump"
 )
@@ -42,6 +43,8 @@ func newSelector(selectMode SelectMode, servers map[string]string) Selector {
 		return newConsistentHashSelector(servers)
 	case SelectByUser:
 		return nil
+	case EtcdV3Method:
+		return newEtcdv3MethodSelector(servers)
 	default:
 		return newRandomSelector(servers)
 	}
@@ -56,37 +59,25 @@ type Node struct {
 
 // randomSelector selects randomly.
 type randomSelector struct {
-	servers  []string
-	nodes    goutil.Map
-	uriPaths goutil.Map
+	servers []string
 }
 
 func newRandomSelector(servers map[string]string) Selector {
-	info := &randomSelector{
-		nodes:    goutil.AtomicMap(),
-		uriPaths: goutil.AtomicMap(),
+	ss := make([]string, 0, len(servers))
+	for k := range servers {
+		ss = append(ss, k)
 	}
-	for k, v := range servers {
-		if strings.HasPrefix(k, util.ServiceNamespace()) {
-			info.AddNode(k, util.GetServiceInfo([]byte(v)))
-		}
-	}
-	return info
+
+	return &randomSelector{servers: ss}
 }
 
 func (s randomSelector) Select(ctx context.Context, servicePath, serviceMethod string, args interface{}) string {
-	iface, exist := s.uriPaths.Load(serviceMethod)
-	if !exist {
-		log.Errorf("serviceMethod is not exist.serviceMethod:%+v", serviceMethod)
+	ss := s.servers
+	if len(ss) == 0 {
 		return ""
 	}
-	nodes := iface.(goutil.Map)
-	var addr string
-	if _, iface, exist = nodes.Random(); exist {
-		addr = iface.(*Node).Addr
-		return addr
-	}
-	return ""
+	i := fastrand.Uint32n(uint32(len(ss)))
+	return ss[i]
 }
 
 func (s *randomSelector) UpdateServer(servers map[string]string) {
@@ -99,50 +90,9 @@ func (s *randomSelector) UpdateServer(servers map[string]string) {
 }
 
 func (s *randomSelector) AddNode(key string, info *util.ServiceInfo) {
-	addr := util.GetHostport(key)
-	node := &Node{
-		Addr: addr,
-		Info: info,
-	}
-	s.nodes.Store(addr, node)
-	log.Infof("AddNode addr:%+v, len:%+v", addr, s.nodes.Len())
-	var (
-		v          interface{}
-		ok         bool
-		uriPathMap goutil.Map
-	)
-	for _, uriPath := range info.UriPaths {
-		if v, ok = s.uriPaths.Load(uriPath); !ok {
-			uriPathMap = goutil.RwMap(1)
-			uriPathMap.Store(addr, node)
-			s.uriPaths.Store(uriPath, uriPathMap)
-		} else {
-			uriPathMap = v.(goutil.Map)
-			uriPathMap.Store(addr, node)
-		}
-	}
 }
+
 func (s *randomSelector) DelNode(key string) {
-	addr := util.GetHostport(key)
-	_node, ok := s.nodes.Load(addr)
-	if !ok {
-		return
-	}
-	s.nodes.Delete(addr)
-	log.Infof("DelNode addr:%+v, len:%+v", addr, s.nodes.Len())
-	for _, uriPath := range _node.(*Node).Info.UriPaths {
-		_uriPathMap, ok := s.uriPaths.Load(uriPath)
-		if !ok {
-			continue
-		}
-		uriPathMap := _uriPathMap.(goutil.Map)
-		if _, ok := uriPathMap.Load(addr); ok {
-			uriPathMap.Delete(addr)
-			if uriPathMap.Len() == 0 {
-				s.uriPaths.Delete(uriPath)
-			}
-		}
-	}
 }
 
 // roundRobinSelector selects servers with roundrobin.
@@ -376,4 +326,89 @@ func (s *consistentHashSelector) DelNode(key string) {
 // weightedICMPSelector selects servers with ping result.
 type weightedICMPSelector struct {
 	servers []*Weighted
+}
+
+// etcdv3MethodSelector selects randomly.
+type etcdv3MethodSelector struct {
+	nodes    goutil.Map
+	uriPaths goutil.Map
+}
+
+func newEtcdv3MethodSelector(servers map[string]string) Selector {
+	info := &etcdv3MethodSelector{
+		nodes:    goutil.AtomicMap(),
+		uriPaths: goutil.AtomicMap(),
+	}
+	for k, v := range servers {
+		if strings.HasPrefix(k, util.ServiceNamespace()) {
+			info.AddNode(k, util.GetServiceInfo([]byte(v)))
+		}
+	}
+	return info
+}
+
+func (s etcdv3MethodSelector) Select(ctx context.Context, servicePath, serviceMethod string, args interface{}) string {
+	iface, exist := s.uriPaths.Load(serviceMethod)
+	if !exist {
+		log.Errorf("serviceMethod is not exist.serviceMethod:%+v", serviceMethod)
+		return ""
+	}
+	nodes := iface.(goutil.Map)
+	var addr string
+	if _, iface, exist = nodes.Random(); exist {
+		addr = iface.(*Node).Addr
+		return addr
+	}
+	return ""
+}
+
+func (s *etcdv3MethodSelector) UpdateServer(servers map[string]string) {
+
+}
+
+func (s *etcdv3MethodSelector) AddNode(key string, info *util.ServiceInfo) {
+	addr := util.GetHostport(key)
+	node := &Node{
+		Addr: addr,
+		Info: info,
+	}
+	s.nodes.Store(addr, node)
+	log.Infof("AddNode addr:%+v, len:%+v", addr, s.nodes.Len())
+	var (
+		v          interface{}
+		ok         bool
+		uriPathMap goutil.Map
+	)
+	for _, uriPath := range info.UriPaths {
+		if v, ok = s.uriPaths.Load(uriPath); !ok {
+			uriPathMap = goutil.RwMap(1)
+			uriPathMap.Store(addr, node)
+			s.uriPaths.Store(uriPath, uriPathMap)
+		} else {
+			uriPathMap = v.(goutil.Map)
+			uriPathMap.Store(addr, node)
+		}
+	}
+}
+func (s *etcdv3MethodSelector) DelNode(key string) {
+	addr := util.GetHostport(key)
+	_node, ok := s.nodes.Load(addr)
+	if !ok {
+		return
+	}
+	s.nodes.Delete(addr)
+	log.Infof("DelNode addr:%+v, len:%+v", addr, s.nodes.Len())
+	for _, uriPath := range _node.(*Node).Info.UriPaths {
+		_uriPathMap, ok := s.uriPaths.Load(uriPath)
+		if !ok {
+			continue
+		}
+		uriPathMap := _uriPathMap.(goutil.Map)
+		if _, ok := uriPathMap.Load(addr); ok {
+			uriPathMap.Delete(addr)
+			if uriPathMap.Len() == 0 {
+				s.uriPaths.Delete(uriPath)
+			}
+		}
+	}
 }

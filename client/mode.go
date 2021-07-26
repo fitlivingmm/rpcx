@@ -30,6 +30,8 @@ const (
 	ConsistentHash
 	//Closest is selecting the closest server
 	Closest
+	//EtcdV3Method is selecting by etcdv3 method
+	EtcdV3Method
 
 	// SelectByUser is selecting by implementation of users
 	SelectByUser = 1000
